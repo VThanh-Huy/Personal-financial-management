@@ -1,0 +1,21 @@
+# Java / Maven
+**/target/
+*.class
+
+# React / Node
+**/node_modules/
+**/dist/
+
+# IDE
+**/.idea/
+**/.vscode/
+*.iml
+
+# Cau hinh bi mat
+.env
+.env.*
+!.env.example
+**/db-local.properties
+
+# Logs
+*.log
