@@ -1,62 +1,36 @@
 package com.quanlycanhan.config;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import com.quanlycanhan.dao.TransactionDAO;
+import com.quanlycanhan.model.Transaction;
+
 import java.sql.SQLException;
+import java.util.List;
 
 public class DatabaseConnectionTest {
 
     public static void main(String[] args) throws SQLException {
-        String url = "jdbc:mysql://localhost:3306/quan_ly_ca_nhan";
-        String username = "qlcn_app";
-        String password = System.getenv("DB_PASSWORD");
+        // Thay bằng ID thực tế của người dùng mẫu nếu khác 1.
+        long userId = 1L;
 
-        if (password == null || password.isBlank()) {
-            throw new IllegalStateException(
-                    "Chưa thiết lập biến môi trường DB_PASSWORD"
+        TransactionDAO transactionDAO = new TransactionDAO();
+
+        List<Transaction> transactions =
+                transactionDAO.findByUserId(userId);
+
+        for (Transaction transaction : transactions) {
+            System.out.println("--------------------");
+            System.out.println("Mã: " + transaction.getId());
+            System.out.println("Tên: " + transaction.getTitle());
+            System.out.println(
+                    "Số tiền: " + transaction.getAmount() + " VND"
+            );
+            System.out.println(
+                    "Ngày: " + transaction.getTransactionDate()
             );
         }
 
-        String sql = """
-                SELECT id, title, transaction_type,
-                       amount, transaction_date, note
-                FROM transactions
-                ORDER BY transaction_date DESC, id DESC
-                """;
-
-        try (
-                Connection connection =
-                        DatabaseConnection.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql);
-                ResultSet result = statement.executeQuery()
-        ) {
-            int count = 0;
-
-            while (result.next()) {
-                System.out.println("--------------------");
-                System.out.println("Mã: " + result.getLong("id"));
-                System.out.println("Tên: " + result.getString("title"));
-                System.out.println(
-                        "Loại: " + result.getString("transaction_type")
-                );
-                System.out.println(
-                        "Số tiền: " + result.getBigDecimal("amount") + " VND"
-                );
-                System.out.println(
-                        "Ngày: " + result.getDate("transaction_date")
-                );
-
-                String note = result.getString("note");
-                System.out.println(
-                        "Ghi chú: " + (note == null ? "Không có" : note)
-                );
-
-                count++;
-            }
-
-            System.out.println("Tổng số giao dịch: " + count);
-        }
+        System.out.println(
+                "Tổng số giao dịch: " + transactions.size()
+        );
     }
 }

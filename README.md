@@ -91,4 +91,3 @@ III. Tạo các bảng
 1. Viết SQL vào file 002_create_related_tables.sql
 2. Đăng nhập root ("C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -u root -p)
 3. Nhập: SOURCE D:/Document_D/QuanLyCaNhan_Java/database/002_create_related_tables.sql;
-
