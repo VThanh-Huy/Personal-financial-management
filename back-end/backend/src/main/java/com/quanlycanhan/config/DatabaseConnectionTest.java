@@ -1,7 +1,6 @@
 package com.quanlycanhan.config;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,7 +27,7 @@ public class DatabaseConnectionTest {
 
         try (
                 Connection connection =
-                        DriverManager.getConnection(url, username, password);
+                        DatabaseConnection.getConnection();
                 PreparedStatement statement =
                         connection.prepareStatement(sql);
                 ResultSet result = statement.executeQuery()
