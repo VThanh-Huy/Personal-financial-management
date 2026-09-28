@@ -1,0 +1,151 @@
+Project personal_financial_management {
+  database_type: 'MySQL'
+  Note: 'Website quản lý tài chính cá nhân. Phiên bản đầu sử dụng VNĐ.'
+}
+
+// 1. Tài khoản người dùng
+Table users {
+  id bigint [pk, increment]
+  full_name varchar(100) [not null]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null, note: 'Lưu mật khẩu đã băm']
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Mỗi người dùng quản lý dữ liệu tài chính riêng.'
+}
+
+// 2. Ví / tài khoản tiền
+Table wallets {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  name varchar(100) [not null]
+  opening_balance decimal(15,0) [not null, default: 0]
+  is_archived boolean [not null, default: false]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, name) [unique, name: 'uq_wallet_user_name']
+  }
+
+  Note: '''
+    Ví dụ: Tiền mặt, Tài khoản ngân hàng.
+    Số dư hiện tại = số dư ban đầu + tổng thu - tổng chi.
+    Không lưu riêng số dư hiện tại để tránh lệch dữ liệu.
+    Ví được lưu trữ vẫn giữ lịch sử giao dịch.
+  '''
+}
+
+// 3. Danh mục thu / chi
+Table categories {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  name varchar(100) [not null]
+  transaction_type varchar(10) [not null, note: 'INCOME hoặc EXPENSE']
+  is_archived boolean [not null, default: false]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, transaction_type, name) [
+      unique,
+      name: 'uq_category_user_type_name'
+    ]
+  }
+
+  checks {
+    `transaction_type IN ('INCOME', 'EXPENSE')` [
+      name: 'chk_category_type'
+    ]
+  }
+
+  Note: '''
+    Danh mục riêng của từng người dùng.
+    Thu: Lương, Thưởng.
+    Chi: Ăn uống, Đi lại, Học tập.
+  '''
+}
+
+// 4. Giao dịch thu / chi
+Table transactions {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  wallet_id bigint [not null]
+  category_id bigint [not null]
+  title varchar(150) [not null]
+  transaction_type varchar(10) [not null, note: 'INCOME hoặc EXPENSE']
+  amount decimal(15,0) [not null, note: 'Số tiền nguyên đồng, luôn dương']
+  transaction_date date [not null]
+  note varchar(500)
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, transaction_date, id) [name: 'idx_transaction_user_date']
+    (wallet_id, transaction_date) [name: 'idx_transaction_wallet_date']
+    (category_id, transaction_date) [name: 'idx_transaction_category_date']
+  }
+
+  checks {
+    `amount > 0` [name: 'chk_transaction_amount']
+    `transaction_type IN ('INCOME', 'EXPENSE')` [
+      name: 'chk_transaction_type'
+    ]
+  }
+
+  Note: '''
+    Mỗi giao dịch thuộc một người dùng, một ví và một danh mục.
+    Backend phải kiểm tra ví và danh mục thuộc đúng người dùng.
+    Loại giao dịch phải trùng với loại của danh mục.
+  '''
+}
+
+// 5. Ngân sách theo danh mục và tháng
+Table budgets {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  category_id bigint [not null]
+  budget_month date [not null, note: 'Ngày đầu tháng, ví dụ 2026-09-01']
+  amount_limit decimal(15,0) [not null]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, category_id, budget_month) [
+      unique,
+      name: 'uq_budget_user_category_month'
+    ]
+  }
+
+  checks {
+    `amount_limit > 0` [name: 'chk_budget_amount']
+    `DAYOFMONTH(budget_month) = 1` [name: 'chk_budget_month_start']
+  }
+
+  Note: '''
+    Mỗi người dùng có tối đa một ngân sách cho một danh mục trong tháng.
+    Chỉ áp dụng cho danh mục EXPENSE thuộc người dùng đó.
+    Tổng đã chi được tính từ giao dịch của danh mục trong tháng,
+    trên tất cả ví của người dùng.
+    Vượt ngân sách vẫn cho phép ghi giao dịch.
+  '''
+}
+
+// Quan hệ: nhiều bản ghi con thuộc một bản ghi cha.
+// RESTRICT ngăn xóa bản ghi cha khi vẫn có dữ liệu tham chiếu.
+
+Ref: wallets.user_id > users.id [delete: restrict]
+Ref: categories.user_id > users.id [delete: restrict]
+
+Ref: transactions.user_id > users.id [delete: restrict]
+Ref: transactions.wallet_id > wallets.id [delete: restrict]
+Ref: transactions.category_id > categories.id [delete: restrict]
+
+Ref: budgets.user_id > users.id [delete: restrict]
+Ref: budgets.category_id > categories.id [delete: restrict]
+
+| Quan hệ | Ý nghĩa |
+|---|---|
+| `users` → `wallets` | Một người dùng có nhiều ví |
+| `users` → `categories` | Một người dùng có nhiều danh mục |
+| `users` → `transactions` | Một người dùng có nhiều giao dịch |
+| `wallets` → `transactions` | Một ví có nhiều giao dịch |
+| `categories` → `transactions` | Một danh mục có nhiều giao dịch |
+| `users` → `budgets` | Một người dùng có nhiều ngân sách |
+| `categories` → `budgets` | Một danh mục có ngân sách ở nhiều tháng |
