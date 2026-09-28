@@ -47,3 +47,8 @@ II. Kết nối Java với DB bằng JDBC
 - Tìm Environment variables
 - Thêm: Name: DB_PASSWORD. Value: pass đã tạo cho qlcn_app
 - run lại và kiểm tra kết quả
+
+4. Tạo bảng
+- qlcn_app chưa có quyền tạo bảng, nên mở CMD:
+- "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -u root -p
+- Tạo bảng bằng lệnh SQL
