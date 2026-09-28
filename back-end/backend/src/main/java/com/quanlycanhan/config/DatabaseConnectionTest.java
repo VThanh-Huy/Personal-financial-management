@@ -19,7 +19,12 @@ public class DatabaseConnectionTest {
             );
         }
 
-        String sql = "SELECT DATABASE() AS db_name";
+        String sql = """
+                SELECT id, title, transaction_type,
+                       amount, transaction_date, note
+                FROM transactions
+                ORDER BY transaction_date DESC, id DESC
+                """;
 
         try (
                 Connection connection =
@@ -28,12 +33,31 @@ public class DatabaseConnectionTest {
                         connection.prepareStatement(sql);
                 ResultSet result = statement.executeQuery()
         ) {
-            if (result.next()) {
-                System.out.println("Kết nối MySQL thành công!");
+            int count = 0;
+
+            while (result.next()) {
+                System.out.println("--------------------");
+                System.out.println("Mã: " + result.getLong("id"));
+                System.out.println("Tên: " + result.getString("title"));
                 System.out.println(
-                        "Cơ sở dữ liệu: " + result.getString("db_name")
+                        "Loại: " + result.getString("transaction_type")
                 );
+                System.out.println(
+                        "Số tiền: " + result.getBigDecimal("amount") + " VND"
+                );
+                System.out.println(
+                        "Ngày: " + result.getDate("transaction_date")
+                );
+
+                String note = result.getString("note");
+                System.out.println(
+                        "Ghi chú: " + (note == null ? "Không có" : note)
+                );
+
+                count++;
             }
+
+            System.out.println("Tổng số giao dịch: " + count);
         }
     }
 }
