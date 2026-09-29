@@ -30,6 +30,13 @@
             <version>8.4.0</version>
         </dependency>
 <!--   MySQL Connector/J, driver giúp Java giao tiếp với MySQL. Maven sẽ tải thư viện khi bạn đồng bộ project.-->
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.14.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>

@@ -19,7 +19,11 @@ public class DatabaseConnection {
                     "Chưa thiết lập biến môi trường DB_PASSWORD"
             );
         }
-
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Không tìm thấy driver MySQL", e);
+        }
         return DriverManager.getConnection(URL, USERNAME, password);
     }
 }

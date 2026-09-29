@@ -91,3 +91,25 @@ III. Tạo các bảng
 1. Viết SQL vào file 002_create_related_tables.sql
 2. Đăng nhập root ("C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -u root -p)
 3. Nhập: SOURCE D:/Document_D/QuanLyCaNhan_Java/database/002_create_related_tables.sql;
+
+IV. Cấp DB_PASSWORD cho Tomcat
+1. Mở Start, tìm Edit environment variables for your account.
+2. Trong User variables, chọn New.
+3. Nhập tên biến DB_PASSWORD, giá trị là mật khẩu của qlcn_app.
+4. Nhấn OK để lưu.
+Sau đó mở CMD mới từ menu Start để nhận biến vừa thêm. Cách này dùng cho Tomcat chạy bằng catalina.bat dưới tài khoản Windows của bạn; Windows Service có cấu hình môi trường riêng.
+
+- Build và triển khai lại
+1. Dừng Tomcat cũ.
+2. Trong IntelliJ, chạy Maven clean, rồi package.
+3. Xóa bản triển khai webapps\backend và webapps\backend.war cũ trong Tomcat.
+4. Chép backend\target\backend.war mới vào webapps.
+5. Từ CMD mới, chạy:
+"D:\App_dev\apache-tomcat-10.1.60\apache-tomcat-10.1.60\bin\catalina.bat" run
+
+Không xóa thư mục mã nguồn QuanLyCaNhan_Java\backend.
+- Kiểm tra API
+Mở:
+http://localhost:8080/backend/api/transactions
+Cần thấy mảng JSON chứa hai giao dịch. Nếu chỉ thấy [], kiểm tra DEMO_USER_ID. Nếu báo lỗi tải danh sách, xem thông báo trong cửa sổ Tomcat.
+API hiện chưa có xác thực, nên chỉ dùng với dữ liệu mẫu trên máy. Khi có đăng nhập, sẽ thay ID cố định bằng ID từ phiên đăng nhập. 

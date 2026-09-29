@@ -1,25 +1,38 @@
 import { useState } from 'react'
 import './App.css'
 
-function App() {
-  const [message, setMessage] = useState('Chưa kiểm tra kết nối.')
-  const [loading, setLoading] = useState(false)
+const moneyFormatter = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+})
 
-  async function checkBackend() {
+function App() {
+  const [transactions, setTransactions] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [hasLoaded, setHasLoaded] = useState(false)
+
+  async function loadTransactions() {
     setLoading(true)
-    setMessage('Đang kết nối...')
+    setError('')
 
     try {
-      const response = await fetch('/backend/api/hello')
+      const response = await fetch('/backend/api/transactions')
 
       if (!response.ok) {
-        throw new Error(`Máy chủ trả về lỗi HTTP ${response.status}`)
+        throw new Error(`Không thể tải dữ liệu (HTTP ${response.status}).`)
       }
 
       const data = await response.json()
-      setMessage(data.message)
-    } catch (error) {
-      setMessage(`Kết nối thất bại: ${error.message}`)
+
+      if (!Array.isArray(data)) {
+        throw new Error('Dữ liệu trả về không đúng định dạng danh sách.')
+      }
+
+      setTransactions(data)
+      setHasLoaded(true)
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
@@ -27,13 +40,56 @@ function App() {
 
   return (
     <main>
-      <h1>Quản lý chi tiêu cá nhân</h1>
+      <h1>Quản lý tài chính cá nhân</h1>
+      <p>Danh sách giao dịch từ MySQL</p>
 
-      <button onClick={checkBackend} disabled={loading}>
-        {loading ? 'Đang kiểm tra...' : 'Kiểm tra kết nối Java'}
+      <button onClick={loadTransactions} disabled={loading}>
+        {loading ? 'Đang tải...' : 'Tải danh sách giao dịch'}
       </button>
 
-      <p role="status">{message}</p>
+      {error && <p role="alert">{error}</p>}
+
+      {hasLoaded && (
+        <>
+          <p>Tổng số giao dịch: {transactions.length}</p>
+
+          {transactions.length === 0 ? (
+            <p>Chưa có giao dịch.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tên giao dịch</th>
+                    <th>Loại</th>
+                    <th>Số tiền</th>
+                    <th>Ngày</th>
+                    <th>Ghi chú</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td>{transaction.title}</td>
+                      <td>
+                        {transaction.transactionType === 'INCOME'
+                          ? 'Thu nhập'
+                          : 'Chi tiêu'}
+                      </td>
+                      <td>
+                        {moneyFormatter.format(transaction.amount)}
+                      </td>
+                      <td>{transaction.transactionDate}</td>
+                      <td>{transaction.note ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </main>
   )
 }
