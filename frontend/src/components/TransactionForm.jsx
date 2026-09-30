@@ -1,49 +1,109 @@
-import { useState } from 'react'
+import { useEffect, useState } from "react";
 
 function createEmptyForm() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
 
   return {
-    title: '',
-    transactionType: 'EXPENSE',
-    amount: '',
+    walletId: "",
+    categoryId: "",
+    title: "",
+    transactionType: "EXPENSE",
+    amount: "",
     transactionDate: `${year}-${month}-${day}`,
-    note: '',
-  }
+    note: "",
+  };
 }
 
 export default function TransactionForm({ onCreated }) {
-  const [form, setForm] = useState(createEmptyForm)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [form, setForm] = useState(createEmptyForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [wallets, setWallets] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [optionsError, setOptionsError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchOptions(url) {
+      const response = await fetch(url, {
+        signal: controller.signal,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Không thể tải dữ liệu lựa chọn.");
+      }
+
+      if (!Array.isArray(data)) {
+        throw new Error("Dữ liệu lựa chọn không đúng định dạng.");
+      }
+
+      return data;
+    }
+
+    async function loadOptions() {
+      try {
+        const [walletData, categoryData] = await Promise.all([
+          fetchOptions("/backend/api/wallets"),
+          fetchOptions("/backend/api/categories"),
+        ]);
+
+        if (!controller.signal.aborted) {
+          setWallets(walletData);
+          setCategories(categoryData);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setOptionsError(err.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setOptionsLoading(false);
+        }
+      }
+    }
+
+    loadOptions();
+
+    return () => controller.abort();
+  }, []);
+
+  const filteredCategories = categories.filter(
+    (category) => category.transactionType === form.transactionType,
+  );
 
   function handleChange(event) {
-    const { name, value } = event.target
+    const { name, value } = event.target;
 
     setForm((previous) => ({
       ...previous,
       [name]: value,
-    }))
+      ...(name === "transactionType" ? { categoryId: "" } : {}),
+    }));
   }
 
   async function handleSubmit(event) {
-    event.preventDefault()
+    event.preventDefault();
 
-    if (saving) return
+    if (saving || optionsLoading || optionsError) return;
 
-    setError('')
-    setSuccess('')
+    setError("");
+    setSuccess("");
 
-    const title = form.title.trim()
-    const amount = Number(form.amount)
+    const title = form.title.trim();
+    const amount = Number(form.amount);
 
     if (!title) {
-      setError('Tên giao dịch không được để trống.')
-      return
+      setError("Tên giao dịch không được để trống.");
+      return;
     }
 
     if (
@@ -51,65 +111,96 @@ export default function TransactionForm({ onCreated }) {
       amount <= 0 ||
       amount > 999999999999999
     ) {
-      setError('Số tiền phải là số nguyên dương, tối đa 15 chữ số.')
-      return
+      setError("Số tiền phải là số nguyên dương, tối đa 15 chữ số.");
+      return;
+    }
+
+    const selectedWallet = wallets.find(
+      (wallet) => String(wallet.id) === form.walletId,
+    );
+
+    const selectedCategory = filteredCategories.find(
+      (category) => String(category.id) === form.categoryId,
+    );
+
+    if (!selectedWallet || !selectedCategory) {
+      setError("Hãy chọn ví và danh mục phù hợp.");
+      return;
     }
 
     const payload = {
-      walletId: 1,
-      categoryId: form.transactionType === 'INCOME' ? 1 : 2,
+      walletId: selectedWallet.id,
+      categoryId: selectedCategory.id,
       title,
       transactionType: form.transactionType,
       amount,
       transactionDate: form.transactionDate,
       note: form.note.trim() || null,
-    }
+    };
 
-    setSaving(true)
+    setSaving(true);
 
     try {
-      const response = await fetch('/backend/api/transactions', {
-        method: 'POST',
+      const response = await fetch("/backend/api/transactions", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      })
+      });
 
-      const data = await response.json().catch(() => null)
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
         throw new Error(
-          data?.message || `Không thể lưu (HTTP ${response.status}).`
-        )
+          data?.message || `Không thể lưu (HTTP ${response.status}).`,
+        );
       }
 
-      setSuccess('Đã lưu giao dịch thành công.')
-      setForm(createEmptyForm())
+      setSuccess("Đã lưu giao dịch thành công.");
+      setForm(createEmptyForm());
     } catch (err) {
       setError(
-        `${err.message} Nếu kết nối bị gián đoạn, hãy tải lại danh sách trước khi gửi lại.`
-      )
-      setSaving(false)
-      return
+        `${err.message} Nếu kết nối bị gián đoạn, hãy tải lại danh sách trước khi gửi lại.`,
+      );
+      setSaving(false);
+      return;
     }
 
-    // POST đã thành công. Lỗi tải lại không phải lỗi lưu giao dịch.
+    // Lỗi tải lại không phải lỗi lưu giao dịch.
     try {
-      await onCreated()
+      await onCreated();
     } catch {
-      setSuccess('Đã lưu giao dịch. Hãy nhấn tải lại danh sách.')
+      setSuccess("Đã lưu giao dịch. Hãy nhấn tải lại danh sách.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   return (
     <section className="transaction-form">
       <h2>Thêm giao dịch</h2>
+      {optionsLoading && <p role="status">Đang tải ví và danh mục...</p>}
+
+      {optionsError && (
+        <p role="alert">
+          {optionsError} Hãy kiểm tra backend rồi tải lại trang.
+        </p>
+      )}
+
+      {!optionsLoading && !optionsError && wallets.length === 0 && (
+        <p>Bạn chưa có ví đang sử dụng.</p>
+      )}
 
       <form onSubmit={handleSubmit}>
-        <fieldset disabled={saving}>
+        <fieldset
+          disabled={
+            saving ||
+            optionsLoading ||
+            Boolean(optionsError) ||
+            wallets.length === 0
+          }
+        >
           <legend>Thông tin giao dịch</legend>
 
           <label>
@@ -135,10 +226,46 @@ export default function TransactionForm({ onCreated }) {
             </select>
           </label>
 
-          <p>
-            Ví: Tiền mặt · Danh mục:{' '}
-            {form.transactionType === 'INCOME' ? 'Lương' : 'Ăn uống'}
-          </p>
+          <label>
+            Ví
+            <select
+              name="walletId"
+              value={form.walletId}
+              onChange={handleChange}
+              required
+            >
+              <option value="">-- Chọn ví --</option>
+
+              {wallets.map((wallet) => (
+                <option key={wallet.id} value={String(wallet.id)}>
+                  {wallet.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Danh mục
+            <select
+              name="categoryId"
+              value={form.categoryId}
+              onChange={handleChange}
+              required
+              disabled={filteredCategories.length === 0}
+            >
+              <option value="">-- Chọn danh mục --</option>
+
+              {filteredCategories.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {filteredCategories.length === 0 && (
+            <p>Chưa có danh mục cho loại giao dịch này.</p>
+          )}
 
           <label>
             Số tiền (VNĐ)
@@ -178,8 +305,8 @@ export default function TransactionForm({ onCreated }) {
             />
           </label>
 
-          <button type="submit">
-            {saving ? 'Đang lưu...' : 'Lưu giao dịch'}
+          <button type="submit" disabled={filteredCategories.length === 0}>
+            {saving ? "Đang lưu..." : "Lưu giao dịch"}
           </button>
         </fieldset>
       </form>
@@ -187,5 +314,5 @@ export default function TransactionForm({ onCreated }) {
       {error && <p role="alert">{error}</p>}
       {success && <p role="status">{success}</p>}
     </section>
-  )
+  );
 }
