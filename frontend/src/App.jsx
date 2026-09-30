@@ -1,50 +1,54 @@
-import { useState } from 'react'
-import './App.css'
+import TransactionForm from "./components/TransactionForm";
+import { useState } from "react";
+import "./App.css";
 
-const moneyFormatter = new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-})
+const moneyFormatter = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+});
 
 function App() {
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [hasLoaded, setHasLoaded] = useState(false)
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   async function loadTransactions() {
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError("");
 
     try {
-      const response = await fetch('/backend/api/transactions')
+      const response = await fetch("/backend/api/transactions");
 
       if (!response.ok) {
-        throw new Error(`Không thể tải dữ liệu (HTTP ${response.status}).`)
+        throw new Error(`Không thể tải dữ liệu (HTTP ${response.status}).`);
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!Array.isArray(data)) {
-        throw new Error('Dữ liệu trả về không đúng định dạng danh sách.')
+        throw new Error("Dữ liệu trả về không đúng định dạng danh sách.");
       }
 
-      setTransactions(data)
-      setHasLoaded(true)
+      setTransactions(data);
+      setHasLoaded(true);
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
     <main>
       <h1>Quản lý tài chính cá nhân</h1>
-      <p>Danh sách giao dịch từ MySQL</p>
+
+      <TransactionForm onCreated={loadTransactions} />
+
+      {/* Giữ nguyên nút tải danh sách và bảng hiện có bên dưới */}
 
       <button onClick={loadTransactions} disabled={loading}>
-        {loading ? 'Đang tải...' : 'Tải danh sách giao dịch'}
+        {loading ? "Đang tải..." : "Tải danh sách giao dịch"}
       </button>
 
       {error && <p role="alert">{error}</p>}
@@ -56,7 +60,7 @@ function App() {
           {transactions.length === 0 ? (
             <p>Chưa có giao dịch.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: "auto" }}>
               <table>
                 <thead>
                   <tr>
@@ -73,15 +77,13 @@ function App() {
                     <tr key={transaction.id}>
                       <td>{transaction.title}</td>
                       <td>
-                        {transaction.transactionType === 'INCOME'
-                          ? 'Thu nhập'
-                          : 'Chi tiêu'}
+                        {transaction.transactionType === "INCOME"
+                          ? "Thu nhập"
+                          : "Chi tiêu"}
                       </td>
-                      <td>
-                        {moneyFormatter.format(transaction.amount)}
-                      </td>
+                      <td>{moneyFormatter.format(transaction.amount)}</td>
                       <td>{transaction.transactionDate}</td>
-                      <td>{transaction.note ?? '—'}</td>
+                      <td>{transaction.note ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -91,7 +93,7 @@ function App() {
         </>
       )}
     </main>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -203,3 +203,34 @@ th {
 [role='alert'] {
   color: #d32f2f;
 }
+
+.transaction-form {
+  margin: 24px 0;
+  text-align: left;
+}
+
+.transaction-form fieldset {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #888;
+  border-radius: 8px;
+}
+
+.transaction-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.transaction-form input,
+.transaction-form select,
+.transaction-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+}
+
+.transaction-form button {
+  justify-self: start;
+}
