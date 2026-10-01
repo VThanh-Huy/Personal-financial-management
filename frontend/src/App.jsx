@@ -119,6 +119,19 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
         setDeletingId(null);
         return;
       }
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+
+        throw new Error(
+          data?.message || `Không thể xóa giao dịch (HTTP ${response.status}).`,
+        );
+      }
+
+      setDeleteSuccess(`Đã xóa giao dịch "${transaction.title}".`);
+
+      if (editingTransaction?.id === transaction.id) {
+        setEditingTransaction(null);
+      }
     } catch (err) {
       setDeleteError(
         `${err.message} Nếu mất kết nối, hãy tải lại danh sách để kiểm tra.`,
@@ -176,7 +189,10 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
   }
   return (
     <main>
-      <h1>Quản lý tài chính cá nhân</h1>
+      <header className="page-heading">
+        <h1>Quản lý tài chính cá nhân</h1>
+        <p>Ghi chép thu chi và theo dõi các giao dịch của bạn.</p>
+      </header>
 
       <TransactionForm
         key={editingTransaction?.id ?? "new"}
@@ -188,137 +204,200 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
         csrfToken={csrfToken}
         onSessionExpired={onSessionExpired}
       />
-      <form className="transaction-filters" onSubmit={handleFilterSubmit}>
-        <fieldset disabled={loading || saving || deletingId !== null}>
-          <legend>Lọc giao dịch</legend>
 
-          <label>
-            Loại giao dịch
-            <select
-              name="type"
-              value={filters.type}
-              onChange={handleFilterChange}
-            >
-              <option value="">Tất cả</option>
-              <option value="INCOME">Thu nhập</option>
-              <option value="EXPENSE">Chi tiêu</option>
-            </select>
-          </label>
-
-          <label>
-            Từ ngày
-            <input
-              type="date"
-              name="fromDate"
-              value={filters.fromDate}
-              onChange={handleFilterChange}
-              min="1000-01-01"
-              max="9999-12-31"
-            />
-          </label>
-
-          <label>
-            Đến ngày
-            <input
-              type="date"
-              name="toDate"
-              value={filters.toDate}
-              onChange={handleFilterChange}
-              min="1000-01-01"
-              max="9999-12-31"
-            />
-          </label>
-
-          <button type="submit">Lọc</button>
-
-          <button type="button" onClick={resetFilters}>
-            Bỏ lọc
-          </button>
-        </fieldset>
-      </form>
-      <button
-        type="button"
-        onClick={() => loadTransactions()}
-        disabled={loading || saving || deletingId !== null}
+      <section
+        className="transactions-panel"
+        aria-labelledby="transactions-heading"
       >
-        {loading ? "Đang tải..." : "Tải lại danh sách"}
-      </button>
+        <h2 id="transactions-heading">Danh sách giao dịch</h2>
 
-      {error && <p role="alert">{error}</p>}
+        <form className="transaction-filters" onSubmit={handleFilterSubmit}>
+          <fieldset disabled={loading || saving || deletingId !== null}>
+            <legend>Lọc giao dịch</legend>
 
-      {hasLoaded && (
-        <>
-          <p>Số giao dịch trong kết quả: {transactions.length}</p>
+            <label>
+              Loại giao dịch
+              <select
+                name="type"
+                value={filters.type}
+                onChange={handleFilterChange}
+              >
+                <option value="">Tất cả</option>
+                <option value="INCOME">Thu nhập</option>
+                <option value="EXPENSE">Chi tiêu</option>
+              </select>
+            </label>
 
-          <p>
-            Bộ lọc đã áp dụng:{" "}
-            {appliedFilters.type === "INCOME"
-              ? "Thu nhập"
-              : appliedFilters.type === "EXPENSE"
-                ? "Chi tiêu"
-                : "Tất cả loại"}
-            {" · Từ: "}
-            {appliedFilters.fromDate || "Không giới hạn"}
-            {" · Đến: "}
-            {appliedFilters.toDate || "Không giới hạn"}
-          </p>
+            <label>
+              Từ ngày
+              <input
+                type="date"
+                name="fromDate"
+                value={filters.fromDate}
+                onChange={handleFilterChange}
+                min="1000-01-01"
+                max="9999-12-31"
+              />
+            </label>
 
-          {transactions.length === 0 ? (
-            <p>Không có giao dịch phù hợp với bộ lọc.</p>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              {deleteError && <p role="alert">{deleteError}</p>}
-              {deleteSuccess && <p role="status">{deleteSuccess}</p>}
-              <table>
-                <thead>
-                  <tr>
-                    <th>Tên giao dịch</th>
-                    <th>Loại</th>
-                    <th>Số tiền</th>
-                    <th>Ngày</th>
-                    <th>Ghi chú</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
+            <label>
+              Đến ngày
+              <input
+                type="date"
+                name="toDate"
+                value={filters.toDate}
+                onChange={handleFilterChange}
+                min="1000-01-01"
+                max="9999-12-31"
+              />
+            </label>
 
-                <tbody>
-                  {transactions.map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td>{transaction.title}</td>
-                      <td>
-                        {transaction.transactionType === "INCOME"
-                          ? "Thu nhập"
-                          : "Chi tiêu"}
-                      </td>
-                      <td>{moneyFormatter.format(transaction.amount)}</td>
-                      <td>{transaction.transactionDate}</td>
-                      <td>{transaction.note ?? "—"}</td>
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() => setEditingTransaction(transaction)}
-                          disabled={saving || deletingId !== null || loading}
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteTransaction(transaction)}
-                          disabled={saving || deletingId !== null || loading}
-                        >
-                          {deletingId === transaction.id
-                            ? "Đang xóa..."
-                            : "Xóa"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="filter-actions">
+              <button type="submit">Áp dụng</button>
+              <button type="button" onClick={resetFilters}>Bỏ lọc</button>
             </div>
-          )}
-        </>
-      )}
+          </fieldset>
+        </form>
+
+        <button
+          className="button-secondary"
+          type="button"
+          onClick={() => loadTransactions()}
+          disabled={loading || saving || deletingId !== null}
+        >
+          {loading ? "Đang tải..." : "Tải lại danh sách"}
+        </button>
+
+        {error && <p role="alert">{error}</p>}
+        {deleteError && <p role="alert">{deleteError}</p>}
+        {deleteSuccess && <p role="status">{deleteSuccess}</p>}
+
+        {!hasLoaded && !loading && (
+          <p className="empty-state">
+            Nhấn “Tải lại danh sách” để xem các giao dịch.
+          </p>
+        )}
+
+        {hasLoaded && (
+          <>
+            <p className="results-count">
+              {transactions.length} giao dịch trong kết quả
+            </p>
+
+            <p className="filter-summary">
+              Bộ lọc đã áp dụng:{" "}
+              {appliedFilters.type === "INCOME"
+                ? "Thu nhập"
+                : appliedFilters.type === "EXPENSE"
+                  ? "Chi tiêu"
+                  : "Tất cả loại"}
+              {" · Từ: "}
+              {appliedFilters.fromDate || "Không giới hạn"}
+              {" · Đến: "}
+              {appliedFilters.toDate || "Không giới hạn"}
+            </p>
+
+            {transactions.length === 0 ? (
+              <p className="empty-state">
+                Không có giao dịch phù hợp với bộ lọc.
+              </p>
+            ) : (
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Bảng giao dịch, có thể cuộn ngang"
+                aria-busy={loading}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Tên giao dịch</th>
+                      <th scope="col">Loại</th>
+                      <th scope="col" className="amount-cell">
+                        Số tiền
+                      </th>
+                      <th scope="col">Ngày</th>
+                      <th scope="col">Ghi chú</th>
+                      <th scope="col">Thao tác</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {transactions.map((transaction) => {
+                      const isIncome = transaction.transactionType === "INCOME";
+
+                      return (
+                        <tr key={transaction.id}>
+                          <td className="transaction-title">
+                            {transaction.title}
+                          </td>
+
+                          <td>
+                            <span
+                              className={`type-badge ${
+                                isIncome ? "income" : "expense"
+                              }`}
+                            >
+                              {isIncome ? "Thu nhập" : "Chi tiêu"}
+                            </span>
+                          </td>
+
+                          <td
+                            className={`amount-cell ${
+                              isIncome ? "amount-income" : "amount-expense"
+                            }`}
+                          >
+                            {moneyFormatter.format(transaction.amount)}
+                          </td>
+
+                          <td>{transaction.transactionDate}</td>
+
+                          <td className="transaction-note">
+                            {transaction.note || "—"}
+                          </td>
+
+                          <td>
+                            <div className="row-actions">
+                              <button
+                                className="button-secondary"
+                                type="button"
+                                onClick={() =>
+                                  setEditingTransaction(transaction)
+                                }
+                                disabled={
+                                  saving || deletingId !== null || loading
+                                }
+                                aria-label={`Sửa ${transaction.title}`}
+                              >
+                                Sửa
+                              </button>
+
+                              <button
+                                className="button-danger"
+                                type="button"
+                                onClick={() => deleteTransaction(transaction)}
+                                disabled={
+                                  saving || deletingId !== null || loading
+                                }
+                                aria-label={`Xóa ${transaction.title}`}
+                              >
+                                {deletingId === transaction.id
+                                  ? "Đang xóa..."
+                                  : "Xóa"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </main>
   );
 }

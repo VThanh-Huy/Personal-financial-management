@@ -91,76 +91,122 @@ export default function AuthForm({ onAuthenticated }) {
     onAuthenticated(data)
   }
 
-  return (
-    <section className="auth-form">
-      <h1>Quản lý tài chính cá nhân</h1>
-      <h2>{isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}</h2>
+    return (
+    <main className="auth-page">
+      <section className="auth-form" aria-labelledby="auth-title">
+        <div className="auth-brand">
+          <span className="brand-mark" aria-hidden="true">₫</span>
+          <span>Tài chính cá nhân</span>
+        </div>
 
-      <form onSubmit={handleSubmit}>
-        <fieldset disabled={busy}>
-          <legend>Thông tin tài khoản</legend>
+        <header className="auth-heading">
+          <h1 id="auth-title">
+            {isRegister ? 'Tạo tài khoản' : 'Chào mừng trở lại'}
+          </h1>
 
-          {isRegister && (
+          <p>
+            {isRegister
+              ? 'Bắt đầu ghi chép và quản lý thu chi của bạn.'
+              : 'Đăng nhập để tiếp tục quản lý thu chi của bạn.'}
+          </p>
+        </header>
+
+        <form onSubmit={handleSubmit} aria-busy={busy}>
+          <fieldset disabled={busy}>
+            <legend className="visually-hidden">
+              Thông tin tài khoản
+            </legend>
+
+            {isRegister && (
+              <label>
+                Họ và tên
+                <input
+                  name="fullName"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  autoComplete="name"
+                  maxLength={100}
+                  placeholder="Nhập họ và tên"
+                  required
+                />
+              </label>
+            )}
+
             <label>
-              Họ tên
+              Email
               <input
-                name="fullName"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                autoComplete="name"
-                maxLength={100}
+                type="email"
+                name="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={255}
+                placeholder="ban@example.com"
                 required
               />
             </label>
-          )}
 
-          <label>
-            Email
-            <input
-              type="email"
-              name="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="username"
-              maxLength={255}
-              required
-            />
-          </label>
+            <label>
+              Mật khẩu
+              <input
+                type="password"
+                name="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={
+                  isRegister ? 'new-password' : 'current-password'
+                }
+                aria-describedby={
+                  isRegister ? 'password-hint' : undefined
+                }
+                placeholder={
+                  isRegister ? 'Tạo mật khẩu của bạn' : 'Nhập mật khẩu'
+                }
+                required
+              />
+            </label>
 
-          <label>
-            Mật khẩu
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={isRegister ? 'new-password' : 'current-password'}
-              required
-            />
-          </label>
+            {isRegister && (
+              <p id="password-hint" className="auth-hint">
+                Dùng mật khẩu từ 15 đến 128 ký tự.
+                Bạn có thể dùng một cụm từ dài, dễ nhớ.
+              </p>
+            )}
 
-          {isRegister && (
-            <p>Dùng mật khẩu từ 15 đến 128 ký tự.</p>
-          )}
+            <button className="auth-submit" type="submit">
+              {busy
+                ? 'Đang xử lý...'
+                : isRegister
+                  ? 'Tạo tài khoản'
+                  : 'Đăng nhập'}
+            </button>
+          </fieldset>
+        </form>
 
-          <button type="submit">
-            {busy
-              ? 'Đang xử lý...'
-              : isRegister
-                ? 'Đăng ký'
-                : 'Đăng nhập'}
+        {error && <p role="alert">{error}</p>}
+        {message && <p role="status">{message}</p>}
+
+        <div className="auth-footer">
+          <p>
+            {isRegister ? 'Bạn đã có tài khoản?' : 'Bạn chưa có tài khoản?'}
+          </p>
+
+          <button
+            className="auth-switch"
+            type="button"
+            onClick={switchMode}
+            disabled={busy}
+          >
+            {isRegister ? 'Đăng nhập' : 'Đăng ký tài khoản'}
           </button>
+        </div>
+      </section>
 
-          <button type="button" onClick={switchMode}>
-            {isRegister
-              ? 'Đã có tài khoản? Đăng nhập'
-              : 'Chưa có tài khoản? Đăng ký'}
-          </button>
-        </fieldset>
-      </form>
-
-      {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
-    </section>
+      <p className="auth-caption">
+        Theo dõi từng khoản nhỏ, chủ động hơn với tài chính của bạn.
+      </p>
+    </main>
   )
 }

@@ -115,20 +115,6 @@ export default function TransactionForm({
   }
 
   async function handleSubmit(event) {
-    const response = await fetch(url, {
-      method: transaction ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (response.status === 401) {
-      setSaving(false);
-      onSessionExpired();
-      return;
-    }
     event.preventDefault();
 
     if (saving || optionsLoading || optionsError) return;
@@ -162,7 +148,14 @@ export default function TransactionForm({
     );
 
     if (!selectedWallet || !selectedCategory) {
-      setError("Hãy chọn ví và danh mục phù hợp.");
+      setError(
+        "Hãy chọn ví và danh mục đang hoạt động, phù hợp với giao dịch.",
+      );
+      return;
+    }
+
+    if (!form.transactionDate) {
+      setError("Hãy chọn ngày giao dịch.");
       return;
     }
 
@@ -176,20 +169,27 @@ export default function TransactionForm({
       note: form.note.trim() || null,
     };
 
+    const url = transaction
+      ? `/backend/api/transactions?id=${encodeURIComponent(transaction.id)}`
+      : "/backend/api/transactions";
+
     setSaving(true);
 
     try {
-      const url = transaction
-        ? `/backend/api/transactions?id=${encodeURIComponent(transaction.id)}`
-        : "/backend/api/transactions";
-
       const response = await fetch(url, {
         method: transaction ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
         },
         body: JSON.stringify(payload),
       });
+
+      if (response.status === 401) {
+        setSaving(false);
+        onSessionExpired();
+        return;
+      }
 
       const data = await response.json().catch(() => null);
 
@@ -212,7 +212,7 @@ export default function TransactionForm({
       return;
     }
 
-    // Lỗi tải lại không phải lỗi lưu giao dịch.
+    // Giao dịch đã lưu; cập nhật lại danh sách trên giao diện.
     try {
       await onCreated();
     } catch {
@@ -339,7 +339,7 @@ export default function TransactionForm({
             />
           </label>
 
-          <label>
+          <label className="form-wide">
             Ghi chú
             <textarea
               name="note"
@@ -347,22 +347,35 @@ export default function TransactionForm({
               onChange={handleChange}
               maxLength={500}
               rows={3}
+              placeholder="Ghi chú thêm về giao dịch (không bắt buộc)"
             />
           </label>
 
-          <button type="submit" disabled={filteredCategories.length === 0}>
-            {saving
-              ? "Đang lưu..."
-              : transaction
-                ? "Cập nhật giao dịch"
-                : "Lưu giao dịch"}
-          </button>
+          <div className="form-actions form-wide">
+            <button type="submit" disabled={filteredCategories.length === 0}>
+              {saving
+                ? "Đang lưu..."
+                : transaction
+                  ? "Cập nhật giao dịch"
+                  : "Lưu giao dịch"}
+            </button>
+          </div>
           {transaction && (
             <button type="button" onClick={onCancel} disabled={saving}>
               Hủy sửa
             </button>
           )}
         </fieldset>
+        {transaction && (
+          <button
+            className="button-secondary cancel-edit"
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+          >
+            Hủy sửa
+          </button>
+        )}
       </form>
 
       {error && <p role="alert">{error}</p>}

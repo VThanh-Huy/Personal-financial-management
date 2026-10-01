@@ -109,12 +109,32 @@ export default function AuthGate({ children }) {
 
   return (
     <>
-      <header className="session-header">
-        <span>Xin chào, {session.user.fullName}</span>
+            <header className="session-header">
+        <div className="session-brand">
+          <span className="brand-mark" aria-hidden="true">₫</span>
 
-        <button onClick={logout} disabled={loggingOut}>
-          {loggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
-        </button>
+          <div>
+            <p className="session-brand-title">Tài chính cá nhân</p>
+            <p className="session-brand-description">
+              Theo dõi thu chi hằng ngày
+            </p>
+          </div>
+        </div>
+
+        <div className="session-account">
+          <div className="session-user">
+            <span className="session-greeting">Xin chào,</span>
+            <strong>{session.user.fullName}</strong>
+          </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+          </button>
+        </div>
       </header>
 
       {error && <p role="alert">{error}</p>}
