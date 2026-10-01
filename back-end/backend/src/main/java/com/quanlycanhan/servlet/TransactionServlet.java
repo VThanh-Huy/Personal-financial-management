@@ -21,24 +21,41 @@ import java.time.format.DateTimeParseException;
 @WebServlet("/api/transactions")
 public class TransactionServlet extends HttpServlet {
 
-    // Chỉ dùng cho bản thử nghiệm trên máy.
-    // Đổi thành ID người dùng mẫu thực tế nếu khác 1.
-    private static final long DEMO_USER_ID = 1L;
+    private LocalDate parseOptionalDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
 
+        return LocalDate.parse(value.strip());
+    }
     @Override
     protected void doGet(
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-
+        long userId = (Long) request.getAttribute("authenticatedUserId");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
         try {
-            TransactionDAO dao = new TransactionDAO();
+            String transactionType = request.getParameter("type");
 
-            List<Transaction> transactions =
-                    dao.findByUserId(DEMO_USER_ID);
+            LocalDate fromDate = parseOptionalDate(
+                    request.getParameter("fromDate")
+            );
+
+            LocalDate toDate = parseOptionalDate(
+                    request.getParameter("toDate")
+            );
+
+            TransactionService service = new TransactionService();
+
+            List<Transaction> transactions = service.findTransactions(
+                    userId,
+                    transactionType,
+                    fromDate,
+                    toDate
+            );
 
             JsonArray data = new JsonArray();
 
@@ -70,20 +87,19 @@ public class TransactionServlet extends HttpServlet {
 
             response.getWriter().write(data.toString());
 
+        } catch (DateTimeParseException e) {
+            writeError(
+                    response,
+                    400,
+                    "Ngày phải hợp lệ và có dạng yyyy-MM-dd."
+            );
+
+        } catch (IllegalArgumentException e) {
+            writeError(response, 400, e.getMessage());
+
         } catch (SQLException | IllegalStateException e) {
             getServletContext().log("Không thể đọc giao dịch", e);
-
-            response.setStatus(
-                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR
-            );
-
-            JsonObject error = new JsonObject();
-            error.addProperty(
-                    "message",
-                    "Không thể tải danh sách giao dịch."
-            );
-
-            response.getWriter().write(error.toString());
+            writeError(response, 500, "Không thể tải danh sách giao dịch.");
         }
     }
     @Override
@@ -91,7 +107,7 @@ public class TransactionServlet extends HttpServlet {
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-
+        long userId = (Long) request.getAttribute("authenticatedUserId");
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -139,7 +155,7 @@ public class TransactionServlet extends HttpServlet {
             TransactionService service = new TransactionService();
 
             long newId = service.createTransaction(
-                    DEMO_USER_ID,
+                    userId,
                     input.walletId(),
                     input.categoryId(),
                     input.title(),
@@ -190,7 +206,7 @@ public class TransactionServlet extends HttpServlet {
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-
+        long userId = (Long) request.getAttribute("authenticatedUserId");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
@@ -208,7 +224,7 @@ public class TransactionServlet extends HttpServlet {
             TransactionService service = new TransactionService();
 
             boolean deleted = service.deleteTransaction(
-                    DEMO_USER_ID,
+                    userId,
                     transactionId
             );
 
@@ -240,7 +256,7 @@ public class TransactionServlet extends HttpServlet {
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-
+        long userId = (Long) request.getAttribute("authenticatedUserId");
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -298,7 +314,7 @@ public class TransactionServlet extends HttpServlet {
             TransactionService service = new TransactionService();
 
             boolean updated = service.updateTransaction(
-                    DEMO_USER_ID,
+                    userId,
                     transactionId,
                     input.walletId(),
                     input.categoryId(),

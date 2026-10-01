@@ -17,14 +17,12 @@ import java.util.List;
 @WebServlet("/api/categories")
 public class CategoryServlet extends HttpServlet {
 
-    // Cùng người dùng mẫu với các API hiện tại.
-    private static final long DEMO_USER_ID = 1L;
-
     @Override
     protected void doGet(
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
+        long userId = (Long) request.getAttribute("authenticatedUserId");
 
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -33,7 +31,7 @@ public class CategoryServlet extends HttpServlet {
             CategoryDAO dao = new CategoryDAO();
 
             List<CategoryOption> categories =
-                    dao.findActiveByUserId(DEMO_USER_ID);
+                    dao.findActiveByUserId(userId);
 
             String json = new Gson().toJson(categories);
             response.getWriter().write(json);

@@ -23,6 +23,8 @@ export default function TransactionForm({
   onCancel,
   saving,
   onSavingChange: setSaving,
+  csrfToken,
+  onSessionExpired,
 }) {
   const [form, setForm] = useState(() => {
     if (!transaction) {
@@ -54,7 +56,10 @@ export default function TransactionForm({
       const response = await fetch(url, {
         signal: controller.signal,
       });
-
+      if (response.status === 401) {
+        onSessionExpired();
+        throw new Error("Phiên đăng nhập đã hết hạn.");
+      }
       const data = await response.json();
 
       if (!response.ok) {
@@ -93,7 +98,7 @@ export default function TransactionForm({
     loadOptions();
 
     return () => controller.abort();
-  }, []);
+  }, [onSessionExpired]);
 
   const filteredCategories = categories.filter(
     (category) => category.transactionType === form.transactionType,
@@ -110,6 +115,20 @@ export default function TransactionForm({
   }
 
   async function handleSubmit(event) {
+    const response = await fetch(url, {
+      method: transaction ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      setSaving(false);
+      onSessionExpired();
+      return;
+    }
     event.preventDefault();
 
     if (saving || optionsLoading || optionsError) return;

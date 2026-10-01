@@ -16,28 +16,71 @@ public class TransactionDAO {
     public List<Transaction> findByUserId(long userId)
             throws SQLException {
 
-        String sql = """
-                SELECT id, user_id, wallet_id, category_id,
-                       title, transaction_type, amount,
-                       transaction_date, note, created_at
-                FROM transactions
-                WHERE user_id = ?
-                ORDER BY transaction_date DESC, id DESC
-                """;
+        return findByUserId(userId, null, null, null);
+    }
+    public List<Transaction> findByUserId(
+            long userId,
+            String transactionType,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) throws SQLException {
+
+        StringBuilder sql = new StringBuilder("""
+            SELECT id, user_id, wallet_id, category_id,
+                   title, transaction_type, amount,
+                   transaction_date, note, created_at
+            FROM transactions
+            WHERE user_id = ?
+            """);
+
+        if (transactionType != null) {
+            sql.append(" AND transaction_type = ?");
+        }
+
+        if (fromDate != null) {
+            sql.append(" AND transaction_date >= ?");
+        }
+
+        if (toDate != null) {
+            sql.append(" AND transaction_date <= ?");
+        }
+
+        sql.append(" ORDER BY transaction_date DESC, id DESC");
 
         List<Transaction> transactions = new ArrayList<>();
 
         try (
                 Connection connection =
                         DatabaseConnection.getConnection();
+
                 PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                        connection.prepareStatement(sql.toString())
         ) {
-            statement.setLong(1, userId);
+            int parameterIndex = 1;
+
+            statement.setLong(parameterIndex++, userId);
+
+            if (transactionType != null) {
+                statement.setString(parameterIndex++, transactionType);
+            }
+
+            if (fromDate != null) {
+                statement.setDate(
+                        parameterIndex++,
+                        java.sql.Date.valueOf(fromDate)
+                );
+            }
+
+            if (toDate != null) {
+                statement.setDate(
+                        parameterIndex++,
+                        java.sql.Date.valueOf(toDate)
+                );
+            }
 
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
-                    Transaction transaction = new Transaction(
+                    transactions.add(new Transaction(
                             result.getLong("id"),
                             result.getLong("user_id"),
                             result.getLong("wallet_id"),
@@ -48,9 +91,7 @@ public class TransactionDAO {
                             result.getDate("transaction_date").toLocalDate(),
                             result.getString("note"),
                             result.getTimestamp("created_at").toLocalDateTime()
-                    );
-
-                    transactions.add(transaction);
+                    ));
                 }
             }
         }

@@ -5,6 +5,8 @@ import com.quanlycanhan.dao.TransactionDAO;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import com.quanlycanhan.model.Transaction;
+import java.util.List;
 
 public class TransactionService {
 
@@ -182,5 +184,63 @@ public class TransactionService {
         }
 
         return note.strip();
+    }
+
+    public List<Transaction> findTransactions(
+            long userId,
+            String transactionType,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) throws SQLException {
+
+        if (userId <= 0) {
+            throw new IllegalArgumentException(
+                    "Mã người dùng phải lớn hơn 0."
+            );
+        }
+
+        // Tham số trống được hiểu là không lọc theo loại.
+        if (transactionType != null) {
+            transactionType = transactionType.strip();
+
+            if (transactionType.isEmpty()) {
+                transactionType = null;
+            }
+        }
+
+        if (transactionType != null
+                && !"INCOME".equals(transactionType)
+                && !"EXPENSE".equals(transactionType)) {
+            throw new IllegalArgumentException(
+                    "Loại giao dịch phải là INCOME hoặc EXPENSE."
+            );
+        }
+
+        if (fromDate != null
+                && (fromDate.getYear() < 1000 || fromDate.getYear() > 9999)) {
+            throw new IllegalArgumentException(
+                    "Ngày bắt đầu nằm ngoài phạm vi được hỗ trợ."
+            );
+        }
+
+        if (toDate != null
+                && (toDate.getYear() < 1000 || toDate.getYear() > 9999)) {
+            throw new IllegalArgumentException(
+                    "Ngày kết thúc nằm ngoài phạm vi được hỗ trợ."
+            );
+        }
+
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new IllegalArgumentException(
+                    "Ngày bắt đầu không được sau ngày kết thúc."
+            );
+        }
+
+        return transactionDAO.findByUserId(
+                userId,
+                transactionType,
+                fromDate,
+                toDate
+        );
     }
 }
