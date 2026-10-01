@@ -159,4 +159,74 @@ public class TransactionDAO {
             }
         }
     }
+    public boolean deleteByIdAndUserId(long id, long userId)
+            throws SQLException {
+
+        String sql = """
+            DELETE FROM transactions
+            WHERE id = ?
+              AND user_id = ?
+            """;
+
+        try (
+                Connection connection =
+                        DatabaseConnection.getConnection();
+
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+            statement.setLong(1, id);
+            statement.setLong(2, userId);
+
+            return statement.executeUpdate() == 1;
+        }
+    }
+    public boolean updateByIdAndUserId(
+            long id,
+            long userId,
+            long walletId,
+            long categoryId,
+            String title,
+            String transactionType,
+            BigDecimal amount,
+            LocalDate transactionDate,
+            String note
+    ) throws SQLException {
+
+        String sql = """
+            UPDATE transactions
+            SET wallet_id = ?,
+                category_id = ?,
+                title = ?,
+                transaction_type = ?,
+                amount = ?,
+                transaction_date = ?,
+                note = ?
+            WHERE id = ?
+              AND user_id = ?
+            """;
+
+        try (
+                Connection connection =
+                        DatabaseConnection.getConnection();
+
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+            statement.setLong(1, walletId);
+            statement.setLong(2, categoryId);
+            statement.setString(3, title);
+            statement.setString(4, transactionType);
+            statement.setBigDecimal(5, amount);
+            statement.setDate(
+                    6,
+                    java.sql.Date.valueOf(transactionDate)
+            );
+            statement.setString(7, note);
+            statement.setLong(8, id);
+            statement.setLong(9, userId);
+
+            return statement.executeUpdate() == 1;
+        }
+    }
 }

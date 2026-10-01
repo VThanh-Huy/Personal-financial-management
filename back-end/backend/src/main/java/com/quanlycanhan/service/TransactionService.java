@@ -3,7 +3,6 @@ package com.quanlycanhan.service;
 import com.quanlycanhan.dao.TransactionDAO;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
@@ -15,6 +14,85 @@ public class TransactionService {
     private final TransactionDAO transactionDAO = new TransactionDAO();
 
     public long createTransaction(
+            long userId,
+            long walletId,
+            long categoryId,
+            String title,
+            String transactionType,
+            BigDecimal amount,
+            LocalDate transactionDate,
+            String note
+    ) throws SQLException {
+
+        validateTransaction(
+                userId, walletId, categoryId, title,
+                transactionType, amount, transactionDate, note
+        );
+
+        return transactionDAO.insert(
+                userId,
+                walletId,
+                categoryId,
+                title.strip(),
+                transactionType,
+                amount.setScale(0),
+                transactionDate,
+                normalizeNote(note)
+        );
+    }
+
+    public boolean updateTransaction(
+            long userId,
+            long transactionId,
+            long walletId,
+            long categoryId,
+            String title,
+            String transactionType,
+            BigDecimal amount,
+            LocalDate transactionDate,
+            String note
+    ) throws SQLException {
+
+        if (transactionId <= 0) {
+            throw new IllegalArgumentException(
+                    "Mã giao dịch phải lớn hơn 0."
+            );
+        }
+
+        validateTransaction(
+                userId, walletId, categoryId, title,
+                transactionType, amount, transactionDate, note
+        );
+
+        return transactionDAO.updateByIdAndUserId(
+                transactionId,
+                userId,
+                walletId,
+                categoryId,
+                title.strip(),
+                transactionType,
+                amount.setScale(0),
+                transactionDate,
+                normalizeNote(note)
+        );
+    }
+
+    public boolean deleteTransaction(long userId, long transactionId)
+            throws SQLException {
+
+        if (userId <= 0 || transactionId <= 0) {
+            throw new IllegalArgumentException(
+                    "Mã người dùng và giao dịch phải lớn hơn 0."
+            );
+        }
+
+        return transactionDAO.deleteByIdAndUserId(
+                transactionId,
+                userId
+        );
+    }
+
+    private void validateTransaction(
             long userId,
             long walletId,
             long categoryId,
@@ -37,9 +115,7 @@ public class TransactionService {
             );
         }
 
-        title = title.strip();
-
-        if (title.length() > 150) {
+        if (title.strip().length() > 150) {
             throw new IllegalArgumentException(
                     "Tên giao dịch không được vượt quá 150 ký tự."
             );
@@ -60,9 +136,7 @@ public class TransactionService {
             );
         }
 
-        try {
-            amount = amount.setScale(0, RoundingMode.UNNECESSARY);
-        } catch (ArithmeticException e) {
+        if (amount.stripTrailingZeros().scale() > 0) {
             throw new IllegalArgumentException(
                     "Số tiền VNĐ phải là số nguyên đồng."
             );
@@ -81,18 +155,10 @@ public class TransactionService {
             );
         }
 
-        if (note != null) {
-            note = note.strip();
-
-            if (note.length() > 500) {
-                throw new IllegalArgumentException(
-                        "Ghi chú không được vượt quá 500 ký tự."
-                );
-            }
-
-            if (note.isEmpty()) {
-                note = null;
-            }
+        if (note != null && note.strip().length() > 500) {
+            throw new IllegalArgumentException(
+                    "Ghi chú không được vượt quá 500 ký tự."
+            );
         }
 
         boolean allowed = transactionDAO.canUseWalletAndCategory(
@@ -108,16 +174,13 @@ public class TransactionService {
                             + "không thuộc bạn hoặc không khớp loại giao dịch."
             );
         }
+    }
 
-        return transactionDAO.insert(
-                userId,
-                walletId,
-                categoryId,
-                title,
-                transactionType,
-                amount,
-                transactionDate,
-                note
-        );
+    private String normalizeNote(String note) {
+        if (note == null || note.isBlank()) {
+            return null;
+        }
+
+        return note.strip();
     }
 }

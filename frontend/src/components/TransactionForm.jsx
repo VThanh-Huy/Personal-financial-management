@@ -17,9 +17,28 @@ function createEmptyForm() {
   };
 }
 
-export default function TransactionForm({ onCreated }) {
-  const [form, setForm] = useState(createEmptyForm);
-  const [saving, setSaving] = useState(false);
+export default function TransactionForm({
+  onCreated,
+  transaction = null,
+  onCancel,
+  saving,
+  onSavingChange: setSaving,
+}) {
+  const [form, setForm] = useState(() => {
+    if (!transaction) {
+      return createEmptyForm();
+    }
+
+    return {
+      walletId: String(transaction.walletId),
+      categoryId: String(transaction.categoryId),
+      title: transaction.title,
+      transactionType: transaction.transactionType,
+      amount: String(transaction.amount),
+      transactionDate: transaction.transactionDate,
+      note: transaction.note ?? "",
+    };
+  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -141,8 +160,12 @@ export default function TransactionForm({ onCreated }) {
     setSaving(true);
 
     try {
-      const response = await fetch("/backend/api/transactions", {
-        method: "POST",
+      const url = transaction
+        ? `/backend/api/transactions?id=${encodeURIComponent(transaction.id)}`
+        : "/backend/api/transactions";
+
+      const response = await fetch(url, {
+        method: transaction ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -157,8 +180,11 @@ export default function TransactionForm({ onCreated }) {
         );
       }
 
-      setSuccess("Đã lưu giao dịch thành công.");
-      setForm(createEmptyForm());
+      setSuccess(transaction ? "Đã cập nhật giao dịch." : "Đã thêm giao dịch.");
+
+      if (!transaction) {
+        setForm(createEmptyForm());
+      }
     } catch (err) {
       setError(
         `${err.message} Nếu kết nối bị gián đoạn, hãy tải lại danh sách trước khi gửi lại.`,
@@ -179,7 +205,7 @@ export default function TransactionForm({ onCreated }) {
 
   return (
     <section className="transaction-form">
-      <h2>Thêm giao dịch</h2>
+      <h2>{transaction ? "Sửa giao dịch" : "Thêm giao dịch"}</h2>
       {optionsLoading && <p role="status">Đang tải ví và danh mục...</p>}
 
       {optionsError && (
@@ -306,8 +332,17 @@ export default function TransactionForm({ onCreated }) {
           </label>
 
           <button type="submit" disabled={filteredCategories.length === 0}>
-            {saving ? "Đang lưu..." : "Lưu giao dịch"}
+            {saving
+              ? "Đang lưu..."
+              : transaction
+                ? "Cập nhật giao dịch"
+                : "Lưu giao dịch"}
           </button>
+          {transaction && (
+            <button type="button" onClick={onCancel} disabled={saving}>
+              Hủy sửa
+            </button>
+          )}
         </fieldset>
       </form>
 

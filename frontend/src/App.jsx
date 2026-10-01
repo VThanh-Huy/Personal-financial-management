@@ -12,6 +12,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState("");
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   async function loadTransactions() {
     setLoading(true);
@@ -39,13 +44,68 @@ function App() {
     }
   }
 
+  async function deleteTransaction(transaction) {
+    if (deletingId !== null) return;
+
+    const confirmed = window.confirm(
+      `Xóa giao dịch "${transaction.title}"? Thao tác này không thể hoàn tác trên giao diện.`,
+    );
+
+    if (!confirmed) return;
+
+    setDeletingId(transaction.id);
+    setDeleteError("");
+    setDeleteSuccess("");
+
+    try {
+      const response = await fetch(
+        `/backend/api/transactions?id=${encodeURIComponent(transaction.id)}`,
+        { method: "DELETE" },
+      );
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+
+        throw new Error(
+          data?.message || `Không thể xóa (HTTP ${response.status}).`,
+        );
+      }
+
+      // HTTP 204 không có JSON nên không gọi response.json() ở đây.
+      setDeleteSuccess("Đã xóa giao dịch.");
+    } catch (err) {
+      setDeleteError(
+        `${err.message} Nếu mất kết nối, hãy tải lại danh sách để kiểm tra.`,
+      );
+      setDeletingId(null);
+      return;
+    }
+
+    // Xóa đã thành công; việc tải lại là thao tác riêng.
+    try {
+      await loadTransactions();
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleTransactionSaved() {
+    setEditingTransaction(null);
+    await loadTransactions();
+  }
+
   return (
     <main>
       <h1>Quản lý tài chính cá nhân</h1>
 
-      <TransactionForm onCreated={loadTransactions} />
-
-      {/* Giữ nguyên nút tải danh sách và bảng hiện có bên dưới */}
+      <TransactionForm
+        key={editingTransaction?.id ?? "new"}
+        transaction={editingTransaction}
+        saving={saving}
+        onSavingChange={setSaving}
+        onCreated={handleTransactionSaved}
+        onCancel={() => setEditingTransaction(null)}
+      />
 
       <button onClick={loadTransactions} disabled={loading}>
         {loading ? "Đang tải..." : "Tải danh sách giao dịch"}
@@ -61,6 +121,8 @@ function App() {
             <p>Chưa có giao dịch.</p>
           ) : (
             <div style={{ overflowX: "auto" }}>
+              {deleteError && <p role="alert">{deleteError}</p>}
+              {deleteSuccess && <p role="status">{deleteSuccess}</p>}
               <table>
                 <thead>
                   <tr>
@@ -69,6 +131,7 @@ function App() {
                     <th>Số tiền</th>
                     <th>Ngày</th>
                     <th>Ghi chú</th>
+                    <th>Thao tác</th>
                   </tr>
                 </thead>
 
@@ -84,6 +147,24 @@ function App() {
                       <td>{moneyFormatter.format(transaction.amount)}</td>
                       <td>{transaction.transactionDate}</td>
                       <td>{transaction.note ?? "—"}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => setEditingTransaction(transaction)}
+                          disabled={saving || deletingId !== null || loading}
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTransaction(transaction)}
+                          disabled={saving || deletingId !== null || loading}
+                        >
+                          {deletingId === transaction.id
+                            ? "Đang xóa..."
+                            : "Xóa"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
