@@ -9,7 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.sql.Statement;
 public class CategoryDAO {
 
     public List<CategoryOption> findActiveByUserId(long userId)
@@ -45,5 +45,40 @@ public class CategoryDAO {
         }
 
         return categories;
+    }
+    public long insert(
+            long userId,
+            String name,
+            String transactionType
+    ) throws SQLException {
+
+        String sql = """
+            INSERT INTO categories (user_id, name, transaction_type)
+            VALUES (?, ?, ?)
+            """;
+
+        try (
+                Connection connection = DatabaseConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(
+                        sql,
+                        Statement.RETURN_GENERATED_KEYS
+                )
+        ) {
+            statement.setLong(1, userId);
+            statement.setString(2, name);
+            statement.setString(3, transactionType);
+
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("Không thể thêm danh mục.");
+            }
+
+            try (ResultSet result = statement.getGeneratedKeys()) {
+                if (result.next()) {
+                    return result.getLong(1);
+                }
+            }
+
+            throw new SQLException("Không lấy được ID danh mục vừa tạo.");
+        }
     }
 }

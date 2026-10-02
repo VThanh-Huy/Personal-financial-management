@@ -2,6 +2,8 @@ import TransactionForm from "./components/TransactionForm";
 import { useRef, useState } from "react";
 import "./App.css";
 import AuthGate from "./components/AuthGate";
+import WalletForm from "./components/WalletForm";
+import CategoryForm from "./components/CategoryForm";
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
@@ -17,6 +19,9 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
   const [deleteSuccess, setDeleteSuccess] = useState("");
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [walletSaving, setWalletSaving] = useState(false);
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [optionsVersion, setOptionsVersion] = useState(0);
   const [filters, setFilters] = useState({
     type: "",
     fromDate: "",
@@ -28,8 +33,8 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
     fromDate: "",
     toDate: "",
   });
-
   const latestRequestId = useRef(0);
+
   async function loadTransactions(selectedFilters = appliedFilters) {
     const requestId = ++latestRequestId.current;
 
@@ -194,6 +199,24 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
         <p>Ghi chép thu chi và theo dõi các giao dịch của bạn.</p>
       </header>
 
+      <WalletForm
+        csrfToken={csrfToken}
+        onSessionExpired={onSessionExpired}
+        saving={walletSaving}
+        onSavingChange={setWalletSaving}
+        disabled={saving || categorySaving || loading || deletingId !== null}
+        onCreated={() => setOptionsVersion((version) => version + 1)}
+      />
+
+      <CategoryForm
+        csrfToken={csrfToken}
+        onSessionExpired={onSessionExpired}
+        saving={categorySaving}
+        onSavingChange={setCategorySaving}
+        disabled={saving || walletSaving || loading || deletingId !== null}
+        onCreated={() => setOptionsVersion((version) => version + 1)}
+      />
+
       <TransactionForm
         key={editingTransaction?.id ?? "new"}
         transaction={editingTransaction}
@@ -203,6 +226,8 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
         onCancel={() => setEditingTransaction(null)}
         csrfToken={csrfToken}
         onSessionExpired={onSessionExpired}
+        optionsVersion={optionsVersion}
+        disabled={walletSaving || categorySaving}
       />
 
       <section
@@ -254,7 +279,9 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
 
             <div className="filter-actions">
               <button type="submit">Áp dụng</button>
-              <button type="button" onClick={resetFilters}>Bỏ lọc</button>
+              <button type="button" onClick={resetFilters}>
+                Bỏ lọc
+              </button>
             </div>
           </fieldset>
         </form>

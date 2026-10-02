@@ -25,6 +25,8 @@ export default function TransactionForm({
   onSavingChange: setSaving,
   csrfToken,
   onSessionExpired,
+  optionsVersion = 0,
+  disabled = false,
 }) {
   const [form, setForm] = useState(() => {
     if (!transaction) {
@@ -74,6 +76,9 @@ export default function TransactionForm({
     }
 
     async function loadOptions() {
+      setOptionsLoading(true);
+      setOptionsError("");
+
       try {
         const [walletData, categoryData] = await Promise.all([
           fetchOptions("/backend/api/wallets"),
@@ -98,7 +103,7 @@ export default function TransactionForm({
     loadOptions();
 
     return () => controller.abort();
-  }, [onSessionExpired]);
+  }, [onSessionExpired, optionsVersion]);
 
   const filteredCategories = categories.filter(
     (category) => category.transactionType === form.transactionType,
@@ -117,7 +122,7 @@ export default function TransactionForm({
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (saving || optionsLoading || optionsError) return;
+    if (saving || disabled || optionsLoading || optionsError) return;
 
     setError("");
     setSuccess("");
@@ -240,6 +245,7 @@ export default function TransactionForm({
       <form onSubmit={handleSubmit}>
         <fieldset
           disabled={
+            disabled ||
             saving ||
             optionsLoading ||
             Boolean(optionsError) ||
