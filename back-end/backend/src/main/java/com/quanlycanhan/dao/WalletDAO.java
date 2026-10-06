@@ -2,7 +2,6 @@ package com.quanlycanhan.dao;
 
 import com.quanlycanhan.config.DatabaseConnection;
 import com.quanlycanhan.dto.WalletOption;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,6 +11,7 @@ import java.util.List;
 import java.math.BigDecimal;
 import java.sql.Statement;
 import com.quanlycanhan.dto.WalletBalanceResponse;
+import com.quanlycanhan.dto.WalletManagementResponse;
 
 public class WalletDAO {
 
@@ -152,5 +152,82 @@ public class WalletDAO {
         }
 
         return wallets;
+    }
+    public List<WalletManagementResponse> findAllByUserId(long userId)
+            throws SQLException {
+
+        String sql = """
+            SELECT id, name, is_archived
+            FROM wallets
+            WHERE user_id = ?
+            ORDER BY is_archived, name, id
+            """;
+
+        List<WalletManagementResponse> wallets = new ArrayList<>();
+
+        try (
+                Connection connection = DatabaseConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+            statement.setLong(1, userId);
+
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    wallets.add(new WalletManagementResponse(
+                            result.getLong("id"),
+                            result.getString("name"),
+                            result.getBoolean("is_archived")
+                    ));
+                }
+            }
+        }
+
+        return wallets;
+    }
+
+    public boolean updateArchiveStatus(
+            long walletId,
+            long userId,
+            boolean archived
+    ) throws SQLException {
+
+        String sql = """
+            UPDATE wallets
+            SET is_archived = ?
+            WHERE id = ?
+              AND user_id = ?
+            """;
+
+        try (
+                Connection connection = DatabaseConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+            statement.setBoolean(1, archived);
+            statement.setLong(2, walletId);
+            statement.setLong(3, userId);
+
+            return statement.executeUpdate() == 1;
+        }
+    }
+    public boolean deleteByIdAndUserId(
+            long walletId,
+            long userId
+    ) throws SQLException {
+
+        String sql = """
+            DELETE FROM wallets
+            WHERE id = ?
+              AND user_id = ?
+            """;
+
+        try (
+                Connection connection = DatabaseConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+            statement.setLong(1, walletId);
+            statement.setLong(2, userId);
+
+            return statement.executeUpdate() == 1;
+        }
     }
 }

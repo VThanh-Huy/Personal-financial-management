@@ -58,4 +58,35 @@ public class CategoryService {
             throw e;
         }
     }
+
+    public boolean changeArchiveStatus(
+            long userId,
+            Long categoryId,
+            Boolean archived
+    ) throws SQLException {
+
+        if (userId <= 0) {
+            throw new IllegalArgumentException(
+                    "Thông tin người dùng không hợp lệ."
+            );
+        }
+
+        if (categoryId == null || categoryId <= 0) {
+            throw new IllegalArgumentException(
+                    "ID danh mục không hợp lệ."
+            );
+        }
+
+        if (archived == null) {
+            throw new IllegalArgumentException(
+                    "Hãy cung cấp trạng thái lưu trữ."
+            );
+        }
+
+        return categoryDAO.updateArchiveStatus(
+                categoryId,
+                userId,
+                archived
+        );
+    }
 }

@@ -2,7 +2,7 @@ package com.quanlycanhan.dao;
 
 import com.quanlycanhan.config.DatabaseConnection;
 import com.quanlycanhan.dto.CategoryOption;
-
+import com.quanlycanhan.dto.CategoryManagementResponse;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -79,6 +79,64 @@ public class CategoryDAO {
             }
 
             throw new SQLException("Không lấy được ID danh mục vừa tạo.");
+        }
+    }
+
+    public List<CategoryManagementResponse> findAllByUserId(long userId)
+            throws SQLException {
+
+        String sql = """
+            SELECT id, name, transaction_type, is_archived
+            FROM categories
+            WHERE user_id = ?
+            ORDER BY is_archived, transaction_type, name, id
+            """;
+
+        List<CategoryManagementResponse> categories = new ArrayList<>();
+
+        try (
+                Connection connection = DatabaseConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+            statement.setLong(1, userId);
+
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    categories.add(new CategoryManagementResponse(
+                            result.getLong("id"),
+                            result.getString("name"),
+                            result.getString("transaction_type"),
+                            result.getBoolean("is_archived")
+                    ));
+                }
+            }
+        }
+
+        return categories;
+    }
+
+    public boolean updateArchiveStatus(
+            long categoryId,
+            long userId,
+            boolean archived
+    ) throws SQLException {
+
+        String sql = """
+            UPDATE categories
+            SET is_archived = ?
+            WHERE id = ?
+              AND user_id = ?
+            """;
+
+        try (
+                Connection connection = DatabaseConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+            statement.setBoolean(1, archived);
+            statement.setLong(2, categoryId);
+            statement.setLong(3, userId);
+
+            return statement.executeUpdate() == 1;
         }
     }
 }

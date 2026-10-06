@@ -4,8 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.quanlycanhan.dao.WalletDAO;
-import com.quanlycanhan.dto.CreateWalletRequest;
-import com.quanlycanhan.dto.WalletOption;
+import com.quanlycanhan.dto.UpdateWalletArchiveRequest;
 import com.quanlycanhan.service.WalletService;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -13,10 +12,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.List;
+import com.quanlycanhan.exception.ResourceInUseException;
 
-@WebServlet("/api/wallets")
-public class WalletServlet extends HttpServlet {
+@WebServlet("/api/wallet-management")
+public class WalletManagementServlet extends HttpServlet {
 
     private final Gson gson = new Gson();
     private final WalletDAO walletDAO = new WalletDAO();
@@ -34,14 +33,12 @@ public class WalletServlet extends HttpServlet {
                 (Long) request.getAttribute("authenticatedUserId");
 
         try {
-            List<WalletOption> wallets =
-                    walletDAO.findActiveByUserId(userId);
-
-            response.getWriter().write(gson.toJson(wallets));
-
+            response.getWriter().write(
+                    gson.toJson(walletDAO.findAllByUserId(userId))
+            );
         } catch (SQLException | IllegalStateException e) {
             getServletContext().log(
-                    "Không thể đọc danh sách ví",
+                    "Không thể tải danh sách quản lý ví",
                     e
             );
 
@@ -54,7 +51,7 @@ public class WalletServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(
+    protected void doPut(
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
@@ -80,31 +77,45 @@ public class WalletServlet extends HttpServlet {
         }
 
         try {
-            CreateWalletRequest body = gson.fromJson(
+            UpdateWalletArchiveRequest body = gson.fromJson(
                     request.getReader(),
-                    CreateWalletRequest.class
+                    UpdateWalletArchiveRequest.class
             );
 
             if (body == null) {
                 writeError(
                         response,
                         HttpServletResponse.SC_BAD_REQUEST,
-                        "Dữ liệu tạo ví không được để trống."
+                        "Dữ liệu yêu cầu không được để trống."
                 );
                 return;
             }
 
-            long walletId = walletService.createWallet(
+            boolean updated = walletService.changeArchiveStatus(
                     userId,
-                    body.name(),
-                    body.openingBalance()
+                    body.walletId(),
+                    body.archived()
             );
 
-            JsonObject result = new JsonObject();
-            result.addProperty("id", walletId);
-            result.addProperty("message", "Đã tạo ví.");
+            if (!updated) {
+                writeError(
+                        response,
+                        HttpServletResponse.SC_NOT_FOUND,
+                        "Không tìm thấy ví của bạn."
+                );
+                return;
+            }
 
-            response.setStatus(HttpServletResponse.SC_CREATED);
+            JsonObject result = new JsonObject();
+            result.addProperty("id", body.walletId());
+            result.addProperty("archived", body.archived());
+            result.addProperty(
+                    "message",
+                    body.archived()
+                            ? "Đã lưu trữ ví."
+                            : "Đã khôi phục ví."
+            );
+
             response.getWriter().write(result.toString());
 
         } catch (JsonParseException e) {
@@ -122,12 +133,88 @@ public class WalletServlet extends HttpServlet {
             );
 
         } catch (SQLException | IllegalStateException e) {
-            getServletContext().log("Không thể tạo ví", e);
+            getServletContext().log(
+                    "Không thể cập nhật trạng thái ví",
+                    e
+            );
 
             writeError(
                     response,
                     HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Không thể tạo ví. Hãy thử lại sau."
+                    "Không thể cập nhật trạng thái ví."
+            );
+        }
+    }
+
+    @Override
+    protected void doDelete(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+
+        prepareResponse(response);
+
+        long userId =
+                (Long) request.getAttribute("authenticatedUserId");
+
+        String rawId = request.getParameter("id");
+
+        if (rawId == null || rawId.isBlank()) {
+            writeError(
+                    response,
+                    HttpServletResponse.SC_BAD_REQUEST,
+                    "Thiếu ID ví cần xóa."
+            );
+            return;
+        }
+
+        try {
+            long walletId = Long.parseLong(rawId);
+
+            boolean deleted = walletService.deleteWallet(
+                    userId,
+                    walletId
+            );
+
+            if (!deleted) {
+                writeError(
+                        response,
+                        HttpServletResponse.SC_NOT_FOUND,
+                        "Không tìm thấy ví của bạn."
+                );
+                return;
+            }
+
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+
+        } catch (NumberFormatException e) {
+            writeError(
+                    response,
+                    HttpServletResponse.SC_BAD_REQUEST,
+                    "ID ví phải là số nguyên hợp lệ."
+            );
+
+        } catch (IllegalArgumentException e) {
+            writeError(
+                    response,
+                    HttpServletResponse.SC_BAD_REQUEST,
+                    e.getMessage()
+            );
+
+        } catch (ResourceInUseException e) {
+            writeError(
+                    response,
+                    HttpServletResponse.SC_CONFLICT,
+                    e.getMessage()
+            );
+
+        } catch (SQLException | IllegalStateException e) {
+            getServletContext().log("Không thể xóa ví", e);
+
+            writeError(
+                    response,
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Không thể xóa ví. Hãy thử lại sau."
             );
         }
     }

@@ -6,6 +6,8 @@ import WalletForm from "./components/WalletForm";
 import CategoryForm from "./components/CategoryForm";
 import WalletBalances from "./components/WalletBalances";
 import TransactionSummary from "./components/TransactionSummary";
+import WalletManagement from "./components/WalletManagement";
+import CategoryManagement from "./components/CategoryManagement";
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
@@ -25,6 +27,8 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
   const [optionsVersion, setOptionsVersion] = useState(0);
   const [balanceVersion, setBalanceVersion] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
+  const [walletManaging, setWalletManaging] = useState(false);
+  const [categoryManaging, setCategoryManaging] = useState(false);
   const [filters, setFilters] = useState({
     type: "",
     fromDate: "",
@@ -40,12 +44,22 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
 
   useEffect(() => {
     if (!editingTransaction) return;
-    transactionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    transactionFormRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
     transactionFormRef.current?.focus({ preventScroll: true });
   }, [editingTransaction]);
 
   function startEditing(transaction) {
-    if (saving || walletSaving || categorySaving || loading || deletingId !== null) return;
+    if (
+      saving ||
+      walletSaving ||
+      categorySaving ||
+      loading ||
+      deletingId !== null
+    )
+      return;
     setDeleteError("");
     setDeleteSuccess("");
     setActiveTab("transactions");
@@ -82,14 +96,20 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
           data?.message || `Không thể tải dữ liệu (HTTP ${response.status}).`,
         );
       }
-      if (!Array.isArray(data) || !data.every((item) =>
-        item && Number.isSafeInteger(item.id) &&
-        typeof item.title === "string" &&
-        Number.isSafeInteger(item.amount) && item.amount > 0 &&
-        ["INCOME", "EXPENSE"].includes(item.transactionType) &&
-        typeof item.transactionDate === "string" &&
-        (item.note == null || typeof item.note === "string")
-      )) {
+      if (
+        !Array.isArray(data) ||
+        !data.every(
+          (item) =>
+            item &&
+            Number.isSafeInteger(item.id) &&
+            typeof item.title === "string" &&
+            Number.isSafeInteger(item.amount) &&
+            item.amount > 0 &&
+            ["INCOME", "EXPENSE"].includes(item.transactionType) &&
+            typeof item.transactionDate === "string" &&
+            (item.note == null || typeof item.note === "string"),
+        )
+      ) {
         throw new Error("Dữ liệu trả về không đúng định dạng danh sách.");
       }
       if (requestId !== latestRequestId.current) return;
@@ -107,7 +127,14 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
     }
   }
   async function deleteTransaction(transaction) {
-    if (loading || saving || walletSaving || categorySaving || deletingId !== null) return;
+    if (
+      loading ||
+      saving ||
+      walletSaving ||
+      categorySaving ||
+      deletingId !== null
+    )
+      return;
     const confirmed = window.confirm(
       `Xóa giao dịch "${transaction.title}"? Thao tác này không thể hoàn tác trên giao diện.`,
     );
@@ -191,7 +218,12 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
     await loadTransactions(emptyFilters);
   }
   const navigationLocked =
-    saving || walletSaving || categorySaving || deletingId !== null;
+    saving ||
+    walletSaving ||
+    categoryManaging ||
+    categorySaving ||
+    walletManaging ||
+    deletingId !== null;
   return (
     <main>
       <header className="page-heading">
@@ -245,8 +277,34 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
           onSessionExpired={onSessionExpired}
           saving={walletSaving}
           onSavingChange={setWalletSaving}
-          disabled={saving || categorySaving || loading || deletingId !== null}
+          disabled={
+            saving ||
+            categorySaving ||
+            categoryManaging ||
+            walletManaging ||
+            loading ||
+            deletingId !== null
+          }
           onCreated={() => {
+            setOptionsVersion((version) => version + 1);
+            setBalanceVersion((version) => version + 1);
+          }}
+        />
+        <WalletManagement
+          csrfToken={csrfToken}
+          onSessionExpired={onSessionExpired}
+          refreshVersion={optionsVersion}
+          saving={walletManaging}
+          onSavingChange={setWalletManaging}
+          disabled={
+            saving ||
+            walletSaving ||
+            categoryManaging ||
+            categorySaving ||
+            loading ||
+            deletingId !== null
+          }
+          onChanged={() => {
             setOptionsVersion((version) => version + 1);
             setBalanceVersion((version) => version + 1);
           }}
@@ -256,25 +314,61 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
           onSessionExpired={onSessionExpired}
           saving={categorySaving}
           onSavingChange={setCategorySaving}
-          disabled={saving || walletSaving || loading || deletingId !== null}
+          disabled={
+            saving ||
+            walletSaving ||
+            categoryManaging ||
+            walletManaging ||
+            loading ||
+            deletingId !== null
+          }
           onCreated={() => setOptionsVersion((version) => version + 1)}
+        />
+        <CategoryManagement
+          csrfToken={csrfToken}
+          onSessionExpired={onSessionExpired}
+          refreshVersion={optionsVersion}
+          saving={categoryManaging}
+          onSavingChange={setCategoryManaging}
+          disabled={
+            saving ||
+            walletSaving ||
+            categorySaving ||
+            walletManaging ||
+            loading ||
+            deletingId !== null
+          }
+          onChanged={() => {
+            setOptionsVersion((version) => version + 1);
+          }}
         />
       </div>
       <div id="transactions-section" hidden={activeTab !== "transactions"}>
-        <div ref={transactionFormRef} tabIndex={-1}
-          aria-label="Form thêm hoặc sửa giao dịch" style={{ scrollMarginTop: "20px" }}>
-        <TransactionForm
-          key={editingTransaction?.id ?? "new"}
-          transaction={editingTransaction}
-          saving={saving}
-          onSavingChange={setSaving}
-          onCreated={handleTransactionSaved}
-          onCancel={() => setEditingTransaction(null)}
-          csrfToken={csrfToken}
-          onSessionExpired={onSessionExpired}
-          optionsVersion={optionsVersion}
-          disabled={walletSaving || categorySaving || loading || deletingId !== null}
-        />
+        <div
+          ref={transactionFormRef}
+          tabIndex={-1}
+          aria-label="Form thêm hoặc sửa giao dịch"
+          style={{ scrollMarginTop: "20px" }}
+        >
+          <TransactionForm
+            key={editingTransaction?.id ?? "new"}
+            transaction={editingTransaction}
+            saving={saving}
+            onSavingChange={setSaving}
+            onCreated={handleTransactionSaved}
+            onCancel={() => setEditingTransaction(null)}
+            csrfToken={csrfToken}
+            onSessionExpired={onSessionExpired}
+            optionsVersion={optionsVersion}
+            disabled={
+              walletSaving ||
+              categoryManaging ||
+              categorySaving ||
+              walletManaging ||
+              loading ||
+              deletingId !== null
+            }
+          />
         </div>
         <section
           className="transactions-panel"
@@ -390,7 +484,8 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
                     </thead>
                     <tbody>
                       {transactions.map((transaction) => {
-                        const isIncome = transaction.transactionType === "INCOME";
+                        const isIncome =
+                          transaction.transactionType === "INCOME";
                         return (
                           <tr key={transaction.id}>
                             <td className="transaction-title">
@@ -421,9 +516,7 @@ function FinanceApp({ csrfToken, onSessionExpired }) {
                                 <button
                                   className="button-secondary"
                                   type="button"
-                                  onClick={() =>
-                                    startEditing(transaction)
-                                  }
+                                  onClick={() => startEditing(transaction)}
                                   disabled={
                                     saving || deletingId !== null || loading
                                   }

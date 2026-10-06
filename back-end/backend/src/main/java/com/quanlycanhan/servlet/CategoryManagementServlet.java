@@ -3,24 +3,24 @@ package com.quanlycanhan.servlet;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.quanlycanhan.dao.WalletDAO;
-import com.quanlycanhan.dto.CreateWalletRequest;
-import com.quanlycanhan.dto.WalletOption;
-import com.quanlycanhan.service.WalletService;
+import com.quanlycanhan.dao.CategoryDAO;
+import com.quanlycanhan.dto.UpdateCategoryArchiveRequest;
+import com.quanlycanhan.service.CategoryService;
+
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.List;
 
-@WebServlet("/api/wallets")
-public class WalletServlet extends HttpServlet {
+@WebServlet("/api/category-management")
+public class CategoryManagementServlet extends HttpServlet {
 
     private final Gson gson = new Gson();
-    private final WalletDAO walletDAO = new WalletDAO();
-    private final WalletService walletService = new WalletService();
+    private final CategoryDAO categoryDAO = new CategoryDAO();
+    private final CategoryService categoryService = new CategoryService();
 
     @Override
     protected void doGet(
@@ -34,27 +34,25 @@ public class WalletServlet extends HttpServlet {
                 (Long) request.getAttribute("authenticatedUserId");
 
         try {
-            List<WalletOption> wallets =
-                    walletDAO.findActiveByUserId(userId);
-
-            response.getWriter().write(gson.toJson(wallets));
-
+            response.getWriter().write(
+                    gson.toJson(categoryDAO.findAllByUserId(userId))
+            );
         } catch (SQLException | IllegalStateException e) {
             getServletContext().log(
-                    "Không thể đọc danh sách ví",
+                    "Không thể tải danh sách quản lý danh mục",
                     e
             );
 
             writeError(
                     response,
                     HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Không thể tải danh sách ví."
+                    "Không thể tải danh sách danh mục."
             );
         }
     }
 
     @Override
-    protected void doPost(
+    protected void doPut(
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
@@ -80,31 +78,45 @@ public class WalletServlet extends HttpServlet {
         }
 
         try {
-            CreateWalletRequest body = gson.fromJson(
+            UpdateCategoryArchiveRequest body = gson.fromJson(
                     request.getReader(),
-                    CreateWalletRequest.class
+                    UpdateCategoryArchiveRequest.class
             );
 
             if (body == null) {
                 writeError(
                         response,
                         HttpServletResponse.SC_BAD_REQUEST,
-                        "Dữ liệu tạo ví không được để trống."
+                        "Dữ liệu yêu cầu không được để trống."
                 );
                 return;
             }
 
-            long walletId = walletService.createWallet(
+            boolean updated = categoryService.changeArchiveStatus(
                     userId,
-                    body.name(),
-                    body.openingBalance()
+                    body.categoryId(),
+                    body.archived()
             );
 
-            JsonObject result = new JsonObject();
-            result.addProperty("id", walletId);
-            result.addProperty("message", "Đã tạo ví.");
+            if (!updated) {
+                writeError(
+                        response,
+                        HttpServletResponse.SC_NOT_FOUND,
+                        "Không tìm thấy danh mục của bạn."
+                );
+                return;
+            }
 
-            response.setStatus(HttpServletResponse.SC_CREATED);
+            JsonObject result = new JsonObject();
+            result.addProperty("id", body.categoryId());
+            result.addProperty("archived", body.archived());
+            result.addProperty(
+                    "message",
+                    body.archived()
+                            ? "Đã lưu trữ danh mục."
+                            : "Đã khôi phục danh mục."
+            );
+
             response.getWriter().write(result.toString());
 
         } catch (JsonParseException e) {
@@ -122,12 +134,15 @@ public class WalletServlet extends HttpServlet {
             );
 
         } catch (SQLException | IllegalStateException e) {
-            getServletContext().log("Không thể tạo ví", e);
+            getServletContext().log(
+                    "Không thể cập nhật trạng thái danh mục",
+                    e
+            );
 
             writeError(
                     response,
                     HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Không thể tạo ví. Hãy thử lại sau."
+                    "Không thể cập nhật trạng thái danh mục."
             );
         }
     }
